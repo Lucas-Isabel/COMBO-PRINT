@@ -1,0 +1,93 @@
+﻿@page "/"
+@inject IJSRuntime JS
+
+@using ZXing;
+@using ZXing.Common;
+@using System.Drawing; // Para Bitmap
+@using System.Drawing.Imaging; // Para ImageFormat
+@using System.IO;
+
+<h3>Gerador de Códigos de Barras</h3>
+
+<EditForm Model="@codes" OnValidSubmit="GenerateHtml">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label>Código 1:</label>
+        <InputText @bind-Value="codes.Code1" />
+    </div>
+    <div>
+        <label>Código 2:</label>
+        <InputText @bind-Value="codes.Code2" />
+    </div>
+    <div>
+        <label>Código 3:</label>
+        <InputText @bind-Value="codes.Code3" />
+    </div>
+    <button type="submit">Gerar HTML</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(generatedHtml))
+{
+    <h4>HTML Gerado:</h4>
+    <div>
+        <div>@((MarkupString)generatedHtml)</div>
+        <button @onclick="Print">Imprimir</button>
+    </div>
+}
+
+@code {
+    private Codes codes = new Codes();
+    private string generatedHtml;
+
+    private void GenerateHtml()
+    {
+        generatedHtml = $@"
+        <div style='display: flex; flex-direction: column;'>
+            <div style='width: 60px; height: 90px; margin: 5px; border: 1px solid black;'>
+                <img src='data:image/png;base64,{GenerateBarcode(codes.Code1)}' style='width: 100%; height: 100%;' />
+            </div>
+            <div style='width: 60px; height: 90px; margin: 5px; border: 1px solid black;'>
+                <img src='data:image/png;base64,{GenerateBarcode(codes.Code2)}' style='width: 100%; height: 100%;' />
+            </div>
+            <div style='width: 60px; height: 90px; margin: 5px; border: 1px solid black;'>
+                <img src='data:image/png;base64,{GenerateBarcode(codes.Code3)}' style='width: 100%; height: 100%;' />
+            </div>
+        </div>";
+    }
+
+    private void Print()
+    {
+        var script = "window.print();";
+        JS.InvokeVoidAsync("eval", script);
+    }
+
+    private string GenerateBarcode(string code)
+    {
+        // Usando BarcodeWriter com generics
+        var barcodeWriter = new ZXing.BarcodeWriter<Bitmap>
+            {
+                Format = BarcodeFormat.CODE_128,
+                Options = new EncodingOptions
+                {
+                    Width = 60,
+                    Height = 90,
+                    Margin = 0
+                }
+            };
+
+        // Gerando a imagem do código de barras
+        using var bitmap = barcodeWriter.Write(code);
+        using var memoryStream = new MemoryStream();
+        bitmap.Save(memoryStream, ImageFormat.Png);
+        return Convert.ToBase64String(memoryStream.ToArray());
+    }
+
+    private class Codes
+    {
+        public string Code1 { get; set; }
+        public string Code2 { get; set; }
+        public string Code3 { get; set; }
+    }
+}
